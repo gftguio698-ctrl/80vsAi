@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>80枚カードゲーム</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;background:#f3f4f6;color:#111827}
+header{background:#111827;color:#fff;padding:16px;text-align:center;font-size:22px;font-weight:700}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px;background:#fff}
+.stat{text-align:center;padding:8px 4px;background:#f3f4f6;border-radius:10px;font-size:13px}.stat strong{display:block;font-size:20px}
+.controls{padding:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+button{border:0;border-radius:12px;padding:14px 10px;font-size:16px;font-weight:700;background:#2563eb;color:#fff}
+button.secondary{background:#6b7280}button.danger{background:#dc2626}
+.message{margin:0 10px 10px;padding:12px;background:#fff;border-radius:10px;font-size:14px;line-height:1.5}
+h2{font-size:18px;margin:14px 10px 8px}.hand{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:0 10px 14px}
+.card{min-height:92px;background:#fff;border:2px solid transparent;border-radius:12px;padding:12px;box-shadow:0 1px 3px #00000014;text-align:left}
+.card.selected{border-color:#ef4444;background:#fee2e2}.card .name{font-weight:700;font-size:15px}.card .number{color:#6b7280;font-size:12px;margin-top:5px}
+.empty{grid-column:1/-1;text-align:center;padding:30px;color:#6b7280;background:#fff;border-radius:12px}
+.log{margin:0 10px 20px;padding:10px;background:#111827;color:#e5e7eb;border-radius:10px;font-size:12px;line-height:1.6;max-height:180px;overflow-y:auto}
+</style>
+</head>
+<body>
+<header>80枚カードゲーム</header>
+<div class="stats">
+<div class="stat">ターン<strong id="turn">1</strong></div>
+<div class="stat">山札<strong id="deck">72</strong></div>
+<div class="stat">手札<strong id="handCount">8</strong></div>
+<div class="stat">捨て札<strong id="discardCount">0</strong></div>
+<div class="stat">選択中<strong id="selectedCount">0</strong></div>
+<div class="stat">合計<strong id="total">80</strong></div>
+</div>
+<div class="controls">
+<button id="endTurn">ターン終了</button>
+<button class="secondary" id="clearSelection">選択解除</button>
+<button class="danger" id="newGame">最初から</button>
+<button class="secondary" id="showDiscard">捨て札を見る</button>
+</div>
+<div class="message" id="message">カードをタップして選択し、「ターン終了」を押してください。<br>捨てる枚数×2枚を引きます。</div>
+<h2>手札</h2><div class="hand" id="hand"></div>
+<h2>ゲームログ</h2><div class="log" id="log"></div>
+<script>
+const TOTAL=80;let deck=[],hand=[],discard=[],selected=new Set(),turn=1;
+function makeDeck(){return Array.from({length:TOTAL},(_,i)=>({id:i+1,name:"Card "+String(i+1).padStart(2,"0")}))}
+function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function addLog(t){document.getElementById("log").innerHTML="<div>"+t+"</div>"+document.getElementById("log").innerHTML}
+function draw(n){let x=0;while(x<n&&deck.length){hand.push(deck.pop());x++}return x}
+function newGame(){deck=shuffle(makeDeck());hand=[];discard=[];selected=new Set();turn=1;draw(8);document.getElementById("log").innerHTML="";addLog("ゲーム開始：初期手札8枚");document.getElementById("message").innerHTML="ゲーム開始。カードをタップして選択できます。<br>選択したカードはターン終了時に捨て札になります。";render()}
+function toggleCard(i){selected.has(i)?selected.delete(i):selected.add(i);render()}
+function endTurn(){let n=selected.size;if(n){[...selected].sort((a,b)=>b-a).forEach(i=>{discard.push(hand[i]);hand.splice(i,1)});let d=draw(n*2);addLog("ターン"+turn+": "+n+"枚捨てて"+d+"枚ドロー")}else addLog("ターン"+turn+": 何も捨てず");selected.clear();let refill=Math.max(0,8-hand.length),d2=draw(refill);if(d2)addLog("ターン"+(turn+1)+"開始: "+d2+"枚補充");turn++;document.getElementById("message").innerHTML=n+"枚を捨て、"+n*2+"枚引きました。<br>現在の手札は "+hand.length+"枚です。";render()}
+function showDiscard(){alert(discard.length?"捨て札\n\n"+discard.map(c=>c.name).join("\n"):"捨て札はまだありません。")}
+function render(){document.getElementById("turn").textContent=turn;document.getElementById("deck").textContent=deck.length;document.getElementById("handCount").textContent=hand.length;document.getElementById("discardCount").textContent=discard.length;document.getElementById("selectedCount").textContent=selected.size;document.getElementById("total").textContent=deck.length+hand.length+discard.length;document.getElementById("hand").innerHTML=hand.length?hand.map((c,i)=>'<button class="card '+(selected.has(i)?"selected":"")+'" onclick="toggleCard('+i+')"><div class="name">'+c.name+'</div><div class="number">カード番号：'+c.id+'</div></button>').join(""):'<div class="empty">手札がありません</div>'}
+document.getElementById("endTurn").onclick=endTurn;document.getElementById("clearSelection").onclick=()=>{selected.clear();render()};document.getElementById("newGame").onclick=()=>{if(confirm("最初からやり直しますか？"))newGame()};document.getElementById("showDiscard").onclick=showDiscard;newGame();
+</script>
+</body>
+</html>

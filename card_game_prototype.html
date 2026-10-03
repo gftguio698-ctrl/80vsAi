@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>80枚カードゲーム Prototype</title>
+<style>
+body{font-family:system-ui,sans-serif;margin:0;background:#f4f1ea;color:#222}
+main{max-width:1000px;margin:auto;padding:20px}
+h1{margin:0 0 6px}.sub{color:#666}
+.panel{background:white;border-radius:14px;padding:16px;margin:14px 0;box-shadow:0 2px 10px #0001}
+.stats{display:flex;gap:14px;flex-wrap:wrap}.stat{padding:8px 12px;background:#eee;border-radius:10px}
+.cards{display:flex;flex-wrap:wrap;gap:10px}
+.card{width:130px;min-height:125px;border:1px solid #bbb;border-radius:12px;background:#fff;padding:10px;box-sizing:border-box;cursor:pointer}
+.card:hover{transform:translateY(-2px)} .card.selected{outline:3px solid #555}
+.card b{display:block;margin-bottom:7px}.card small{color:#666}
+button{border:0;border-radius:10px;padding:10px 14px;background:#222;color:white;cursor:pointer;margin:4px}
+button:disabled{opacity:.35;cursor:not-allowed}.danger{background:#8b3030}
+.log{max-height:180px;overflow:auto;background:#171717;color:#ddd;padding:10px;border-radius:10px;font-size:13px}
+</style>
+</head>
+<body>
+<main>
+<h1>80枚カードゲーム — Prototype</h1>
+<div class="sub">現在は「手札エンジン」だけを検証する試作版。</div>
+
+<div class="panel">
+<div class="stats">
+<div class="stat">ターン：<b id="turn"></b></div>
+<div class="stat">山札：<b id="deck"></b></div>
+<div class="stat">手札：<b id="handN"></b></div>
+<div class="stat">捨て札：<b id="grave"></b></div>
+</div>
+</div>
+
+<div class="panel">
+<h2>手札</h2>
+<p>捨てたいカードをクリックで選択 → ターン終了。</p>
+<div id="hand" class="cards"></div>
+<button id="end" onclick="endTurn()">選択したカードを捨ててターン終了</button>
+<button onclick="resetGame()">最初から</button>
+</div>
+
+<div class="panel">
+<h2>捨て札</h2>
+<div id="discard" class="cards"></div>
+</div>
+
+<div class="panel">
+<h2>ログ</h2><div id="log" class="log"></div>
+</div>
+</main>
+<script>
+let deck=[],hand=[],discard=[],turn=1,selected=new Set();
+
+function makeDeck(){
+  return Array.from({length:80},(_,i)=>({id:i+1,name:"カード "+String(i+1).padStart(2,"0")}));
+}
+function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}}
+function draw(n){
+  let actual=Math.min(n,deck.length);
+  for(let i=0;i<actual;i++) hand.push(deck.pop());
+  return actual;
+}
+function log(t){let el=document.getElementById("log");el.innerHTML="<div>"+t+"</div>"+el.innerHTML}
+function resetGame(){
+  deck=makeDeck();shuffle(deck);hand=[];discard=[];turn=1;selected.clear();
+  draw(8);log("ゲーム開始。初期手札8枚。");render();
+}
+function toggle(id){selected.has(id)?selected.delete(id):selected.add(id);render()}
+function endTurn(){
+  let n=selected.size;
+  if(n===0){log("カードを捨てずにターン終了。");}
+  else{
+    let gone=hand.filter(c=>selected.has(c.id));
+    hand=hand.filter(c=>!selected.has(c.id));
+    discard.push(...gone);
+    let drawn=draw(n*2);
+    log("ターン"+turn+"："+n+"枚捨てて"+drawn+"枚ドロー。");
+  }
+  selected.clear();
+  // 次ターン開始時に8枚になるようドロー
+  if(hand.length<8){
+    let need=8-hand.length, drawn=draw(need);
+    log("ターン開始補充："+drawn+"枚。");
+  } else log("ターン開始：手札"+hand.length+"枚のため補充なし。");
+  turn++;render();
+}
+function render(){
+  document.getElementById("turn").textContent=turn;
+  document.getElementById("deck").textContent=deck.length;
+  document.getElementById("handN").textContent=hand.length;
+  document.getElementById("grave").textContent=discard.length;
+  document.getElementById("hand").innerHTML=hand.map(c=>`
+    <div class="card ${selected.has(c.id)?"selected":""}" onclick="toggle(${c.id})">
+      <b>${c.name}</b><small>まだ効果なし<br>ID: ${c.id}</small>
+    </div>`).join("");
+  document.getElementById("discard").innerHTML=discard.map(c=>`
+    <div class="card"><b>${c.name}</b><small>捨て札</small></div>`).join("");
+}
+resetGame();
+</script>
+</body></html>

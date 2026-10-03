@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>80枚カードゲーム Prototype</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#eeeae2;color:#222;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
+header{background:#222;color:white;padding:16px}
+header h1{font-size:20px;margin:0 0 4px}
+header p{font-size:12px;margin:0;color:#ccc}
+main{max-width:720px;margin:auto;padding:12px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.stat{background:white;border-radius:12px;padding:10px;text-align:center;box-shadow:0 1px 4px #0001}
+.stat span{display:block;font-size:11px;color:#777}.stat b{font-size:22px}
+.panel{background:white;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 1px 5px #0001}
+.panel h2{font-size:16px;margin:0 0 8px}
+.note{font-size:13px;color:#666;line-height:1.6}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.card{min-height:105px;border:2px solid #bbb;border-radius:10px;background:#fafafa;padding:9px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent}
+.card:active{transform:scale(.97)}
+.card.selected{border-color:#111;background:#ddd;box-shadow:0 0 0 2px #111}
+.card .name{font-weight:700;font-size:13px}
+.card .id{font-size:10px;color:#777}
+.card .mark{font-size:11px;color:#8b3030;font-weight:700}
+button{width:100%;border:0;border-radius:12px;padding:14px;margin-top:9px;background:#222;color:white;font-size:15px;font-weight:700}
+button.secondary{background:#777}
+button:disabled{opacity:.35}
+.log{height:150px;overflow:auto;background:#171717;color:#ddd;border-radius:10px;padding:10px;font-size:12px;line-height:1.7}
+@media(max-width:430px){.cards{grid-template-columns:repeat(3,1fr)}.card{min-height:100px}}
+</style>
+</head>
+<body>
+<header>
+<h1>80枚カードゲーム</h1>
+<p>Core Prototype / 手札システム検証版</p>
+</header>
+<main>
+<div class="stats">
+<div class="stat"><span>ターン</span><b id="turn">1</b></div>
+<div class="stat"><span>山札</span><b id="deck">72</b></div>
+<div class="stat"><span>手札</span><b id="handCount">8</b></div>
+</div>
+
+<div class="panel">
+<h2>あなたの手札</h2>
+<div class="note">捨てたいカードをタップして選択してください。選択したカードは「捨ててターン終了」で捨てられ、捨てた枚数×2枚をドローします。</div>
+<div id="hand" class="cards" style="margin-top:10px"></div>
+<button id="endButton" onclick="endTurn()">選択したカードを捨ててターン終了</button>
+<button class="secondary" onclick="resetGame()">最初からやり直す</button>
+</div>
+
+<div class="panel">
+<h2>捨て札 <span id="discardCount"></span></h2>
+<div id="discard" class="cards"></div>
+</div>
+
+<div class="panel">
+<h2>ゲームログ</h2>
+<div id="log" class="log"></div>
+</div>
+</main>
+
+<script>
+let deck=[],hand=[],discard=[],turn=1,selected=new Set();
+
+function createDeck(){
+  return Array.from({length:80},(_,i)=>({
+    id:i+1,
+    name:"カード "+String(i+1).padStart(2,"0")
+  }));
+}
+function shuffle(a){
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+}
+function draw(n){
+  const actual=Math.min(n,deck.length);
+  for(let i=0;i<actual;i++) hand.push(deck.pop());
+  return actual;
+}
+function addLog(text){
+  const el=document.getElementById("log");
+  const line=document.createElement("div");
+  line.textContent=text;
+  el.prepend(line);
+}
+function toggleCard(id){
+  if(selected.has(id)) selected.delete(id);
+  else selected.add(id);
+  render();
+}
+function endTurn(){
+  const n=selected.size;
+  const chosen=hand.filter(c=>selected.has(c.id));
+
+  if(n>0){
+    hand=hand.filter(c=>!selected.has(c.id));
+    discard.push(...chosen);
+    const drawn=draw(n*2);
+    addLog(`ターン${turn}: ${n}枚捨てる → ${drawn}枚ドロー`);
+  }else{
+    addLog(`ターン${turn}: 捨て札なし`);
+  }
+
+  selected.clear();
+
+  // 次ターン開始時、手札が8枚未満なら8枚まで補充
+  if(hand.length<8){
+    const need=8-hand.length;
+    const drawn=draw(need);
+    addLog(`ターン開始補充: ${drawn}枚`);
+  }else{
+    addLog(`ターン開始: 手札${hand.length}枚。補充なし`);
+  }
+
+  turn++;
+  render();
+}
+function resetGame(){
+  deck=createDeck();
+  shuffle(deck);
+  hand=[];
+  discard=[];
+  selected.clear();
+  turn=1;
+  draw(8);
+  document.getElementById("log").innerHTML="";
+  addLog("ゲーム開始。初期手札8枚");
+  render();
+}
+function render(){
+  document.getElementById("turn").textContent=turn;
+  document.getElementById("deck").textContent=deck.length;
+  document.getElementById("handCount").textContent=hand.length;
+  document.getElementById("discardCount").textContent=`(${discard.length}枚)`;
+
+  document.getElementById("hand").innerHTML=hand.map(c=>`
+    <div class="card ${selected.has(c.id)?"selected":""}" onclick="toggleCard(${c.id})">
+      <div class="name">${c.name}</div>
+      <div class="id">ID ${c.id}</div>
+      ${selected.has(c.id)?'<div class="mark">捨てる</div>':''}
+    </div>
+  `).join("");
+
+  document.getElementById("discard").innerHTML=discard.length
+    ? discard.map(c=>`
+      <div class="card">
+        <div class="name">${c.name}</div>
+        <div class="id">捨て札</div>
+      </div>
+    `).join("")
+    : '<div class="note">まだ捨て札はありません。</div>';
+
+  document.getElementById("endButton").textContent =
+    selected.size
+      ? ` ${selected.size}枚捨てて ${selected.size*2}枚ドロー → ターン終了 `
+      : "捨てずにターン終了";
+}
+resetGame();
+</script>
+</body>
+</html>
